@@ -1,34 +1,31 @@
-﻿using AssParser.Lib;
+using AssParser.Lib;
 
-namespace AssParser.Test.AssParserExtTest
+namespace AssParser.Test.AssParserExtTest;
+
+[TestClass]
+public class AssParserExtTest
 {
-    public class AssParserExtTest
+    [TestMethod]
+    public async Task UsedFonts_ShouldBe_EquivalentAsync()
     {
-        [Fact]
-        public void UsedFonts_ShouldBe_Equivalent()
+        var truth = await File.ReadAllLinesAsync(Path.Combine("AssParserExtTest", "FontsTest.txt"));
+        var sortedTruth = new List<string>();
+        foreach (var line in truth)
         {
-            var truth = File.ReadAllLines(Path.Combine("AssParserExtTest", "FontsTest.txt"));
-            var sortedTruth = new List<string>();
-            foreach (var line in truth)
-            {
-                var parts = line.Split('\t');
-                parts[3] = SortString(parts[3]);
-                sortedTruth.Add(string.Join("\t", parts));
-            }
-            var assfile = Lib.AssParser.ParseAssFile(Path.Combine("AssParserExtTest", "FontsTest.ass")).Result;
-            var fonts = assfile.UsedFonts();
-            var res = new List<string>();
-            foreach (var font in fonts)
-            {
-                res.Add(font.FontName + "\t" + font.Bold + "\t" + font.IsItalic + "\t" + SortString(font.UsedChar));
-            }
-            Assert.Equivalent(sortedTruth.ToHashSet(), res.ToHashSet());
+            var parts = line.Split('\t');
+            parts[3] = SortString(parts[3]);
+            sortedTruth.Add(string.Join('\t', parts));
         }
-        private static string SortString(string s)
-        {
-            var sa = s.ToArray();
-            Array.Sort(sa);
-            return new(sa);
-        }
+        var assFile = await Lib.AssParser.ParseFileAsync(Path.Combine("AssParserExtTest", "FontsTest.ass"));
+        var fonts = assFile.UsedFonts();
+        var res = fonts.Select(font => font.FontName + "\t" + font.Bold + "\t" + font.IsItalic + "\t" + SortString(font.UsedChar));
+        CollectionAssert.AreEquivalent(sortedTruth, res.ToList());
+    }
+
+    private static string SortString(string s)
+    {
+        var sa = s.ToArray();
+        Array.Sort(sa);
+        return new(sa);
     }
 }

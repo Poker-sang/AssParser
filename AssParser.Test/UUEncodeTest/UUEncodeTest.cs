@@ -1,56 +1,54 @@
+using System.Text;
 using AssParser.Lib;
-using System.Text.RegularExpressions;
-using Xunit.Abstractions;
 
-namespace AssParser.Test.UUEncodeTest
+namespace AssParser.Test.UUEncodeTest;
+    
+[TestClass]
+public class UuEncodeTest
 {
-    public class UUEncodeTest
+    private byte[] _fontsDataCrlf = null!;
+    private byte[] _fontsDataLf = null!;
+
+    [TestInitialize]
+    public async Task InitializeAsync()
     {
-        private readonly ITestOutputHelper _testOutputHelper;
-        private readonly string fontsDataCrlf;
-        private readonly string fontsDataLf;
-        
-        public UUEncodeTest(ITestOutputHelper testOutputHelper)
-        {
-            _testOutputHelper = testOutputHelper;
-            var assfile = Lib.AssParser.ParseAssFile(Path.Combine("UUEncodeTest", "1.ass")).Result;
-            var fontsData = assfile.UnknownSections["[Fonts]"];
-            fontsData = fontsData.Remove(0, fontsData.IndexOf("\n", StringComparison.Ordinal) + 1).Trim();
+        var assFile = await Lib.AssParser.ParseFileAsync(Path.Combine("UUEncodeTest", "1.ass"));
+        var fontsData = assFile.UnknownSections[AssSubtitleModel.FontsSection];
+        fontsData = fontsData[(fontsData.IndexOf('\n') + 1)..].Trim();
 
-            fontsDataCrlf = Regex.Replace(fontsData, "\r?\n", "\r\n");
-            fontsDataLf = Regex.Replace(fontsData, "\r?\n", "\n");
-        }
+        _fontsDataCrlf = Encoding.UTF8.GetBytes(fontsData.ReplaceLineEndings("\r\n"));
+        _fontsDataLf = Encoding.UTF8.GetBytes(fontsData.ReplaceLineEndings("\n"));
+    }
 
-        [Fact]
-        public void UUDecode_ShouldBe_Same()
-        {
-            var ttf = File.ReadAllBytes(Path.Combine("UUEncodeTest", "FreeSans.ttf"));
-            var data1 = UUEncode.Decode(fontsDataCrlf, out _);
-            Assert.Equal(ttf, data1);
-        }
+    [TestMethod]
+    public void UUDecode_ShouldBe_Same()
+    {
+        var ttf = File.ReadAllBytes(Path.Combine("UUEncodeTest", "FreeSans.ttf"));
+        var data1 = UUEncode.Decode(_fontsDataCrlf, out _);
+        CollectionAssert.AreEqual(ttf, data1.ToArray());
+    }
 
-        [Fact]
-        public void UUEncode_ShouldBe_Same_Crlf()
-        {
-            var data1 = UUEncode.Decode(fontsDataCrlf, out var crlf);
-            var encoded = UUEncode.Encode(data1, true, crlf);
-            Assert.Equal(fontsDataCrlf, encoded);
-        }
-        
-        [Fact]
-        public void UUEncode_ShouldBe_Same_Lf()
-        {
-            var data1 = UUEncode.Decode(fontsDataLf, out var crlf);
-            var encoded = UUEncode.Encode(data1, true, crlf);
-            Assert.Equal(fontsDataLf, encoded);
-        }
+    [TestMethod]
+    public void UUEncode_ShouldBe_Same_Crlf()
+    {
+        var data1 = UUEncode.Decode(_fontsDataCrlf, out var crlf);
+        var encoded = UUEncode.Encode(data1, true, crlf);
+        CollectionAssert.AreEqual(_fontsDataCrlf, encoded.ToArray());
+    }
 
-        [Fact]
-        public void UUEncode_Encode_Coverage_Test()
-        {
-            Assert.Equal("-1", UUEncode.Encode("1"u8.ToArray()));
-            Assert.Equal("-4%", UUEncode.Encode("11"u8.ToArray()));
-            Assert.Equal("-4%R", UUEncode.Encode("111"u8.ToArray()));
-        }
+    [TestMethod]
+    public void UUEncode_ShouldBe_Same_Lf()
+    {
+        var data1 = UUEncode.Decode(_fontsDataLf, out var crlf);
+        var encoded = UUEncode.Encode(data1, true, crlf);
+        CollectionAssert.AreEqual(_fontsDataLf, encoded.ToArray());
+    }
+
+    [TestMethod]
+    public void UUEncode_Encode_Coverage_Test()
+    {
+        CollectionAssert.AreEqual("-1"u8.ToArray(), UUEncode.Encode("1"u8).ToArray());
+        CollectionAssert.AreEqual("-4%"u8.ToArray(), UUEncode.Encode("11"u8).ToArray());
+        CollectionAssert.AreEqual("-4%R"u8.ToArray(), UUEncode.Encode("111"u8).ToArray());
     }
 }

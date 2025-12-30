@@ -1,500 +1,375 @@
-﻿using System.Text;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace AssParser.Lib
+namespace AssParser.Lib;
+
+public static class AssParser
 {
-    public class AssParser
+    /// <summary>
+    /// Parse a single ass file asynchronously.
+    /// </summary>
+    /// <param name="stream">A StreamReader of your ass file.</param>
+    /// <returns></returns>
+    /// <exception cref="AssParserException">If there is any invalid part.</exception>
+    public static async Task<AssSubtitleModel> ParseAsync(Stream stream)
     {
-        static async Task<(string header, string body)> ParseLine(StreamReader streamReader)
+        var lineCount = 0;
+        var ord = new List<string>();
+        ScriptInfo? scriptedInfo = null;
+        Styles? styles = null;
+        Events? events = null;
+        var unknownSections = new Dictionary<string, string>();
+        using var assStream = new StreamReader(stream, leaveOpen: true);
+        while (await assStream.ReadLineAsync() is { } line)
         {
-            var line = await streamReader.ReadLineAsync();
-            if (line == null)
+            lineCount++;
+            if (string.IsNullOrEmpty(line))
+                continue;
+            if (line is not ['[', .. var tag, ']'])
+                throw new AssParserException(lineCount, AssParserException.AssParserErrorType.InvalidSection, $"{line} is not a valid section name");
+            ord.Add(tag);
+            switch (tag)
             {
-                return ("", "");
-            }
-            var data = line.Split(':');
-            string header = data[0].Trim();
-            if (data.Length > 1)
-            {
-                string body = string.Join(':', data[1..]).Trim();
-                return (header, body);
-            }
-            else
-            {
-                return (header, "");
-            }
-        }
-        /// <summary>
-        /// Parse a single ass file asynchronously.
-        /// </summary>
-        /// <param name="assStream">A StreamReader of your ass file.</param>
-        /// <returns></returns>
-        /// <exception cref="Exception">If there is any unvalid part.</exception>
-        public static async Task<AssSubtitleModel> ParseAssFile(StreamReader assStream)
-        {
-            var lineCount = 0;
-            AssSubtitleModel assSubtitleModel = new();
-            string header;
-            string body;
-            while (assStream.Peek() > -1)
-            {
-                var tag = await assStream.ReadLineAsync();
-                lineCount++;
-                if (tag == null || tag.Length == 0)
+                case ScriptInfo.SectionName:
                 {
-                    continue;
-                }
-                //if (tag is not ['[', .., ']']) //.net 7+ only
-                if (!tag.StartsWith('[') || !tag.EndsWith(']'))
-                {
-                    throw new AssParserException($"{tag} is not a valid section name", assStream, lineCount, AssParserErrorType.InvalidSection);
-                }
-                assSubtitleModel.Ord.Add(tag);
-                switch (tag)
-                {
-                    case "[Script Info]":
-                        int commentCount = 0;
-                        while (assStream.Peek() is not '[' and > -1)
+                    var commentCount = 0;
+                    var scriptInfoItems = new Dictionary<string, string?>();
+                    while (assStream.Peek() is var peek and not '[' and > -1)
+                    {
+                        switch (peek)
                         {
-                            if (assStream.Peek() is '\r' or '\n')
+                            case '\n':
                             {
-                                if (assStream.Peek() is '\n')
-                                {
-                                    lineCount++;
-                                }
-                                assStream.Read();
+                                lineCount++;
+                                goto case '\r';
+                            }
+                            case '\r':
+                            {
+                                _ = assStream.Read();
                                 continue;
                             }
-                            if (assStream.Peek() == ';')
-                            {
-                                assSubtitleModel.ScriptInfo.SciptInfoItems.Add($";{commentCount++}", await assStream.ReadLineAsync());
+                            case ';':
+                                scriptInfoItems.Add($";{commentCount++}", await assStream.ReadLineAsync());
                                 lineCount++;
                                 continue;
-                            }
-                            (header, body) = await ParseLine(assStream);
-                            lineCount++;
-                            assSubtitleModel.ScriptInfo.SciptInfoItems.Add(header, body);
                         }
-                        break;
-                    case "[V4+ Styles]":
-                        //[V4+ Styles]
-                        //Read format line
-                        (header, body) = await ParseLine(assStream);
+
+                        var (header, body) = await ParseLineAsync(assStream);
                         lineCount++;
-                        var formatLine = lineCount;
-                        if (header != "Format")
-                        {
-                            throw new AssParserException($"No format line", assStream, formatLine, AssParserErrorType.MissingFormatLine);
-                        }
-                        assSubtitleModel.Styles.Format = body.Split(',');
-                        for (int i = 0; i < assSubtitleModel.Styles.Format.Length; i++)
-                        {
-                            assSubtitleModel.Styles.Format[i] = assSubtitleModel.Styles.Format[i].Trim();
-                        }
-                        assSubtitleModel.Styles.styles = new();
-                        //Read sytle lines
-                        while (assStream.Peek() is not '[' and > -1)
-                        {
-                            if (assStream.Peek() is '\r' or '\n')
-                            {
-                                if (assStream.Peek() is '\n')
-                                {
-                                    lineCount++;
-                                }
-                                assStream.Read();
-                                continue;
-                            }
-                            (header, body) = await ParseLine(assStream);
-                            lineCount++;
-                            if (header != "Style")
-                            {
-                                throw new AssParserException($"Wrong Style Line", assStream, lineCount, AssParserErrorType.InvalidStyleLine);
-                            }
-                            var data = body.Split(",");
-                            Style style = new();
-                            for (int i = 0; i < assSubtitleModel.Styles.Format.Length; i++)
-                            {
-                                switch (assSubtitleModel.Styles.Format[i])
-                                {
-                                    case "Name":
-                                        style.Name = data[i];
-                                        break;
-                                    case "Fontname":
-                                        style.Fontname = data[i];
-                                        break;
-                                    case "Fontsize":
-                                        style.Fontsize = data[i];
-                                        break;
-                                    case "PrimaryColour":
-                                        style.PrimaryColour = data[i];
-                                        break;
-                                    case "SecondaryColour":
-                                        style.SecondaryColour = data[i];
-                                        break;
-                                    case "OutlineColour":
-                                        style.OutlineColour = data[i];
-                                        break;
-                                    case "BackColour":
-                                        style.BackColour = data[i];
-                                        break;
-                                    case "Bold":
-                                        style.Bold = data[i];
-                                        break;
-                                    case "Italic":
-                                        style.Italic = data[i];
-                                        break;
-                                    case "Underline":
-                                        style.Underline = data[i];
-                                        break;
-                                    case "StrikeOut":
-                                        style.StrikeOut = data[i];
-                                        break;
-                                    case "ScaleX":
-                                        style.ScaleX = data[i];
-                                        break;
-                                    case "ScaleY":
-                                        style.ScaleY = data[i];
-                                        break;
-                                    case "Spacing":
-                                        style.Spacing = data[i];
-                                        break;
-                                    case "Angle":
-                                        style.Angle = data[i];
-                                        break;
-                                    case "BorderStyle":
-                                        style.BorderStyle = data[i];
-                                        break;
-                                    case "Outline":
-                                        style.Outline = data[i];
-                                        break;
-                                    case "Shadow":
-                                        style.Shadow = data[i];
-                                        break;
-                                    case "Alignment":
-                                        style.Alignment = data[i];
-                                        break;
-                                    case "MarginL":
-                                        style.MarginL = data[i];
-                                        break;
-                                    case "MarginR":
-                                        style.MarginR = data[i];
-                                        break;
-                                    case "MarginV":
-                                        style.MarginV = data[i];
-                                        break;
-                                    case "Encoding":
-                                        style.Encoding = data[i];
-                                        break;
-                                    default:
-                                        throw new AssParserException($"Invalid style", assStream, formatLine, AssParserErrorType.InvalidStyleLine);
-                                }
+                        scriptInfoItems.Add(header, body);
+                    }
 
-                            }
-                            style.LineNumber = lineCount;
-                            assSubtitleModel.Styles.styles.Add(style);
+                    scriptedInfo = new()
+                    {
+                        ScriptInfoItems = scriptInfoItems
+                    };
+
+                    break;
+                }
+                case Styles.SectionName:
+                {
+                    var (header, body) = await ParseLineAsync(assStream);
+                    lineCount++;
+                    var formatLine = lineCount;
+                    if (header is not "Format")
+                        throw new AssParserException(formatLine, AssParserException.AssParserErrorType.MissingFormatLine, "No format line");
+                    var format = body.Split(',');
+                    for (var i = 0; i < format.Length; i++)
+                        format[i] = format[i].Trim();
+                    var stylesList = new List<Style>();
+
+                    // Read style lines
+                    while (assStream.Peek() is var peek and not '[' and > -1)
+                    {
+                        if (peek is '\r' or '\n')
+                        {
+                            if (peek is '\n')
+                                lineCount++;
+                            _ = assStream.Read();
+                            continue;
                         }
-                        break;
-                    case "[Events]":
-                        //Read Events
-                        //Read format line
-                        (header, body) = await ParseLine(assStream);
+
+                        var (header2, body2) = await ParseLineAsync(assStream);
                         lineCount++;
-                        var eventLine = lineCount;
-                        if (header != "Format")
+                        if (header2 is not "Style")
+                            throw new AssParserException(lineCount, AssParserException.AssParserErrorType.InvalidStyleLine, "Wrong Style Line");
+                        var data = body2.Split(',');
+                        var style = new Style
                         {
-                            throw new AssParserException($"No format line", assStream, eventLine, AssParserErrorType.MissingFormatLine);
+                            LineNumber = lineCount
+                        };
+                        for (var i = 0; i < format.Length; i++)
+                        {
+                            switch (format[i])
+                            {
+                                case nameof(Style.Name): style.Name = data[i]; break;
+                                case nameof(Style.Fontname): style.Fontname = data[i]; break;
+                                case nameof(Style.Fontsize): style.Fontsize = data[i]; break;
+                                case nameof(Style.PrimaryColour): style.PrimaryColour = data[i]; break;
+                                case nameof(Style.SecondaryColour): style.SecondaryColour = data[i]; break;
+                                case nameof(Style.OutlineColour): style.OutlineColour = data[i]; break;
+                                case nameof(Style.BackColour): style.BackColour = data[i]; break;
+                                case nameof(Style.Bold): style.Bold = data[i]; break;
+                                case nameof(Style.Italic): style.Italic = data[i]; break;
+                                case nameof(Style.Underline): style.Underline = data[i]; break;
+                                case nameof(Style.StrikeOut): style.StrikeOut = data[i]; break;
+                                case nameof(Style.ScaleX): style.ScaleX = data[i]; break;
+                                case nameof(Style.ScaleY): style.ScaleY = data[i]; break;
+                                case nameof(Style.Spacing): style.Spacing = data[i]; break;
+                                case nameof(Style.Angle): style.Angle = data[i]; break;
+                                case nameof(Style.BorderStyle): style.BorderStyle = data[i]; break;
+                                case nameof(Style.Outline): style.Outline = data[i]; break;
+                                case nameof(Style.Shadow): style.Shadow = data[i]; break;
+                                case nameof(Style.Alignment): style.Alignment = data[i]; break;
+                                case nameof(Style.MarginL): style.MarginL = data[i]; break;
+                                case nameof(Style.MarginR): style.MarginR = data[i]; break;
+                                case nameof(Style.MarginV): style.MarginV = data[i]; break;
+                                case nameof(Style.Encoding): style.Encoding = data[i]; break;
+                                default: throw new AssParserException(formatLine, AssParserException.AssParserErrorType.InvalidStyleLine, "Invalid style");
+                            }
                         }
-                        assSubtitleModel.Events.Format = body.Split(',');
-                        assSubtitleModel.Events.events = new();
-                        for (int i = 0; i < assSubtitleModel.Events.Format.Length; i++)
-                        {
 
-                            assSubtitleModel.Events.Format[i] = assSubtitleModel.Events.Format[i].Trim();
+                        stylesList.Add(style);
+                    }
+
+                    styles = new()
+                    {
+                        Format = format,
+                        StylesList = stylesList
+                    };
+
+                    break;
+                }
+                case Events.SectionName:
+                {
+                    var (header, body) = await ParseLineAsync(assStream);
+                    lineCount++;
+                    var eventLine = lineCount;
+                    if (header is not "Format")
+                        throw new AssParserException(eventLine, AssParserException.AssParserErrorType.MissingFormatLine, "No format line");
+                    var format = body.Split(',');
+                    for (var i = 0; i < format.Length; i++)
+                        format[i] = format[i].Trim();
+                    var eventsList = new List<Event>();
+
+                    // Read event lines
+                    while (assStream.Peek() is var peek and not '[' and > -1)
+                    {
+                        if (peek is '\r' or '\n')
+                        {
+                            if (peek is '\n')
+                                lineCount++;
+                            _ = assStream.Read();
+                            continue;
                         }
 
-                        while (assStream.Peek() is not '[' and > -1)
+                        var (header2, body2) = await ParseLineAsync(assStream);
+                        lineCount++;
+                        var e = new Event
                         {
-                            if (assStream.Peek() is '\r' or '\n')
+                            LineNumber = lineCount,
+                            Type = header2 switch
                             {
-                                if (assStream.Peek() is '\n')
-                                {
-                                    lineCount++;
-                                }
-                                assStream.Read();
-                                continue;
+                                nameof(EventType.Comment) => EventType.Comment,
+                                nameof(EventType.Dialogue) => EventType.Dialogue,
+                                _ => throw new AssParserException(lineCount, AssParserException.AssParserErrorType.InvalidEventLine, "Invalid event")
                             }
-                            Event events = new();
-                            (header, body) = await ParseLine(assStream);
-                            lineCount++;
-                            if (header == "Comment")
-                            {
-                                events.Type = EventType.Comment;
-                            }
-                            else if (header == "Dialogue")
-                            {
-                                events.Type = EventType.Dialogue;
-                            }
-                            else
-                            {
-                                throw new AssParserException($"Invalid event", assStream, lineCount, AssParserErrorType.InvalidEvent);
-                            }
-                            var data = body.Split(",");
-                            for (int i = 0; i < assSubtitleModel.Events.Format.Length; i++)
-                            {
-                                switch (assSubtitleModel.Events.Format[i])
-                                {
-                                    case "Layer":
-                                        events.Layer = data[i];
-                                        break;
-                                    case "Start":
-                                        events.Start = data[i];
-                                        break;
-                                    case "End":
-                                        events.End = data[i];
-                                        break;
-                                    case "Style":
-                                        events.Style = data[i];
-                                        break;
-                                    case "Name":
-                                        events.Name = data[i];
-                                        break;
-                                    case "MarginL":
-                                        events.MarginL = data[i];
-                                        break;
-                                    case "MarginR":
-                                        events.MarginR = data[i];
-                                        break;
-                                    case "MarginV":
-                                        events.MarginV = data[i];
-                                        break;
-                                    case "Effect":
-                                        events.Effect = data[i];
-                                        break;
-                                    case "Text":
-                                        events.Text = string.Join(',', data[i..]);
-                                        break;
-                                    default:
-                                        throw new AssParserException($"Invalid event", assStream, eventLine, AssParserErrorType.InvalidEvent);
-                                }
-                            }
-                            events.LineNumber = lineCount;
-                            assSubtitleModel.Events.events.Add(events);
-                        }
-                        break;
-                    default:
-                        StringBuilder BodyBuffer = new();
-                        while (assStream.Peek() is not '\r' and not '\n' and > -1)
+                        };
+                        var data = body2.Split(',');
+                        for (var i = 0; i < format.Length; i++)
                         {
-                            BodyBuffer.AppendLine(await assStream.ReadLineAsync());
-                            lineCount++;
+                            switch (format[i])
+                            {
+                                case nameof(Event.Layer): e.Layer = data[i]; break;
+                                case nameof(Event.Start): e.Start = data[i]; break;
+                                case nameof(Event.End): e.End = data[i]; break;
+                                case nameof(Event.Style): e.Style = data[i]; break;
+                                case nameof(Event.Name): e.Name = data[i]; break;
+                                case nameof(Event.MarginL): e.MarginL = data[i]; break;
+                                case nameof(Event.MarginR): e.MarginR = data[i]; break;
+                                case nameof(Event.MarginV): e.MarginV = data[i]; break;
+                                case nameof(Event.Effect): e.Effect = data[i]; break;
+                                case nameof(Event.Text): e.Text = string.Join(',', data[i..]); break;
+                                default: throw new AssParserException(eventLine, AssParserException.AssParserErrorType.InvalidEventLine, "Invalid event");
+                            }
                         }
-                        assSubtitleModel.UnknownSections.Add(tag, BodyBuffer.ToString());
-                        break;
+
+                        eventsList.Add(e);
+                    }
+
+                    events = new()
+                    {
+                        Format = format,
+                        EventsList = eventsList
+                    };
+
+                    break;
+                }
+                default:
+                {
+                    var bodyBuffer = new StringBuilder();
+                    while (assStream.Peek() is not '\r' and not '\n' and > -1)
+                    {
+                        _ = bodyBuffer.AppendLine(await assStream.ReadLineAsync());
+                        lineCount++;
+                    }
+
+                    unknownSections.Add(tag, bodyBuffer.ToString());
+                    break;
                 }
             }
-            return assSubtitleModel;
         }
 
-        /// <summary>
-        /// Parse a single ass file asynchronously.
-        /// </summary>
-        /// <param name="assFile">Path to your ass file.</param>
-        /// <returns>Parsed AssSubtitleModel object.</returns>
-        /// <exception cref="Exception">If there is any unvalid part.</exception>
-        public static async Task<AssSubtitleModel> ParseAssFile(string assFile)
+        if (ord.Count is 0)
+            throw new AssParserException(0, AssParserException.AssParserErrorType.MissingSection, "No sections found");
+        if (scriptedInfo is null)
+            throw new AssParserException(0, AssParserException.AssParserErrorType.MissingSection, $"No [{ScriptInfo.SectionName}] section found");
+        if (styles is null)
+            throw new AssParserException(0, AssParserException.AssParserErrorType.MissingSection, $"No [{Styles.SectionName}] section found");
+        if (events is null)
+            throw new AssParserException(0, AssParserException.AssParserErrorType.MissingSection, $"No [{Events.SectionName}] section found");
+
+        AssSubtitleModel assSubtitleModel = new()
         {
-            using StreamReader assStream = new(File.Open(assFile, FileMode.Open));
-            try
+            Ord = ord,
+            ScriptInfo = scriptedInfo,
+            Styles = styles,
+            Events = events,
+            UnknownSections = unknownSections
+        };
+
+        return assSubtitleModel;
+
+        static async Task<(string Header, string Body)> ParseLineAsync(StreamReader streamReader)
+        {
+            if (await streamReader.ReadLineAsync() is not { } line)
+                return ("", "");
+            var index = line.IndexOf(':');
+            return index is -1
+                ? (line.Trim(), "")
+                : (line[..index].Trim(), line[(index + 1)..].Trim());
+        }
+    }
+
+    /// <summary>
+    /// Parse a single ass file asynchronously.
+    /// </summary>
+    /// <param name="assFile">Path to your ass file.</param>
+    /// <returns>Parsed AssSubtitleModel object.</returns>
+    /// <exception cref="AssParserException">If there is any invalid part.</exception>
+    public static async Task<AssSubtitleModel> ParseFileAsync(string assFile)
+    {
+        await using var assStream = new FileStream(assFile, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+        return await ParseAsync(assStream);
+    }
+
+    /// <summary>
+    /// Build the ass file and write it into StreamWriter.
+    /// </summary>
+    /// <param name="assSubtitleModel">Ass model.</param>
+    /// <param name="stream">Destination stream.</param>
+    /// <returns>A Task.</returns>
+    /// <exception cref="Exception">If there is any invalid element in the ass model.</exception>
+    public static async Task WriteToStreamAsync(AssSubtitleModel assSubtitleModel, Stream stream)
+    {
+        await using var streamWriter = new StreamWriter(stream, leaveOpen: true);
+        await streamWriter.WriteLineAsync($"[{ScriptInfo.SectionName}]");
+        foreach (var item in assSubtitleModel.ScriptInfo.ScriptInfoItems)
+            if (item.Key.StartsWith(';'))
+                await streamWriter.WriteLineAsync(item.Value);
+            else
+                await streamWriter.WriteLineAsync($"{item.Key}: {item.Value}");
+        await streamWriter.WriteLineAsync();
+        if (assSubtitleModel.UnknownSections.TryGetValue(AssSubtitleModel.AegisubProjectGarbageSection, out var aegisubProjectGarbage))
+        {
+            await streamWriter.WriteLineAsync($"[{AssSubtitleModel.AegisubProjectGarbageSection}]");
+            await streamWriter.WriteLineAsync(aegisubProjectGarbage);
+        }
+        await streamWriter.WriteLineAsync($"[{Styles.SectionName}]");
+        await streamWriter.WriteLineAsync($"Format: {string.Join(", ", assSubtitleModel.Styles.Format)}");
+        foreach (var style in assSubtitleModel.Styles.StylesList)
+        {
+            await streamWriter.WriteAsync("Style: ");
+            for (var i = 0; i < assSubtitleModel.Styles.Format.Count; i++)
             {
-                return await ParseAssFile(assStream);
+                await streamWriter.WriteAsync(assSubtitleModel.Styles.Format[i] switch
+                {
+                    nameof(Style.Name) => style.Name,
+                    nameof(Style.Fontname) => style.Fontname,
+                    nameof(Style.Fontsize) => style.Fontsize,
+                    nameof(Style.PrimaryColour) => style.PrimaryColour,
+                    nameof(Style.SecondaryColour) => style.SecondaryColour,
+                    nameof(Style.OutlineColour) => style.OutlineColour,
+                    nameof(Style.BackColour) => style.BackColour,
+                    nameof(Style.Bold) => style.Bold,
+                    nameof(Style.Italic) => style.Italic,
+                    nameof(Style.Underline) => style.Underline,
+                    nameof(Style.StrikeOut) => style.StrikeOut,
+                    nameof(Style.ScaleX) => style.ScaleX,
+                    nameof(Style.ScaleY) => style.ScaleY,
+                    nameof(Style.Spacing) => style.Spacing,
+                    nameof(Style.Angle) => style.Angle,
+                    nameof(Style.BorderStyle) => style.BorderStyle,
+                    nameof(Style.Outline) => style.Outline,
+                    nameof(Style.Shadow) => style.Shadow,
+                    nameof(Style.Alignment) => style.Alignment,
+                    nameof(Style.MarginL) => style.MarginL,
+                    nameof(Style.MarginR) => style.MarginR,
+                    nameof(Style.MarginV) => style.MarginV,
+                    nameof(Style.Encoding) => style.Encoding,
+                    _ => throw new ArgumentOutOfRangeException($"Invalid style {assSubtitleModel.Styles.Format[i]} in [{Styles.SectionName}]")
+                });
+                if (i != assSubtitleModel.Styles.Format.Count - 1)
+                    await streamWriter.WriteAsync(',');
             }
-            catch (AssParserException ex)
+            await streamWriter.WriteAsync(Environment.NewLine);
+        }
+        await streamWriter.WriteLineAsync();
+        if (assSubtitleModel.UnknownSections.TryGetValue(AssSubtitleModel.FontsSection, out var fonts))
+        {
+            await streamWriter.WriteLineAsync($"[{AssSubtitleModel.FontsSection}]");
+            await streamWriter.WriteLineAsync(fonts);
+        }
+        if (assSubtitleModel.UnknownSections.TryGetValue(AssSubtitleModel.GraphicsSection, out var graphics))
+        {
+            await streamWriter.WriteLineAsync($"[{AssSubtitleModel.GraphicsSection}]");
+            await streamWriter.WriteLineAsync(graphics);
+        }
+        await streamWriter.WriteLineAsync($"[{Events.SectionName}]");
+        await streamWriter.WriteAsync($"Format: {string.Join(", ", assSubtitleModel.Events.Format)}");
+        foreach (var item in assSubtitleModel.Events.EventsList)
+        {
+            await streamWriter.WriteAsync(Environment.NewLine);
+            await streamWriter.WriteAsync($"{item.Type}: ");
+            for (var i = 0; i < assSubtitleModel.Events.Format.Count; i++)
             {
-                throw new(ex.ToString());
+                await (assSubtitleModel.Events.Format[i] switch
+                {
+                    nameof(Event.Layer) => streamWriter.WriteAsync(item.Layer),
+                    nameof(Event.Start) => streamWriter.WriteAsync(item.Start),
+                    nameof(Event.End) => streamWriter.WriteAsync(item.End),
+                    nameof(Event.Style) => streamWriter.WriteAsync(item.Style),
+                    nameof(Event.Name) => streamWriter.WriteAsync(item.Name),
+                    nameof(Event.MarginL) => streamWriter.WriteAsync(item.MarginL),
+                    nameof(Event.MarginR) => streamWriter.WriteAsync(item.MarginR),
+                    nameof(Event.MarginV) => streamWriter.WriteAsync(item.MarginV),
+                    nameof(Event.Effect) => streamWriter.WriteAsync(item.Effect),
+                    nameof(Event.Text) => streamWriter.WriteAsync(item.Text),
+                    _ => throw new ArgumentOutOfRangeException($"Invalid style {assSubtitleModel.Events.Format[i]}")
+                });
+                if (i != assSubtitleModel.Events.Format.Count - 1)
+                    await streamWriter.WriteAsync(',');
             }
         }
-        /// <summary>
-        /// Build the ass file and write it into StreamWriter.
-        /// </summary>
-        /// <param name="assSubtitleModel">Ass model.</param>
-        /// <param name="stream">Destination stream writer.</param>
-        /// <returns>A Task.</returns>
-        /// <exception cref="Exception">If there is any invalid element in the ass model.</exception>
-        public static async Task WriteToStreamAsync(AssSubtitleModel assSubtitleModel, StreamWriter stream)
+        if (assSubtitleModel.UnknownSections.TryGetValue(AssSubtitleModel.AegisubExtradataSection, out var aegisubExtradata))
         {
-            await stream.WriteLineAsync("[Script Info]");
-            foreach (var item in assSubtitleModel.ScriptInfo.SciptInfoItems)
-            {
-                if (item.Key.StartsWith(";"))
-                {
-                    await stream.WriteLineAsync($"{item.Value}");
-                }
-                else
-                {
-                    await stream.WriteLineAsync($"{item.Key}: {item.Value}");
-                }
-            }
-            await stream.WriteLineAsync();
-            if (assSubtitleModel.UnknownSections.ContainsKey("[Aegisub Project Garbage]"))
-            {
-                await stream.WriteLineAsync("[Aegisub Project Garbage]");
-                await stream.WriteLineAsync(assSubtitleModel.UnknownSections["[Aegisub Project Garbage]"]);
-            }
-            await stream.WriteLineAsync("[V4+ Styles]");
-            await stream.WriteLineAsync($"Format: {string.Join(", ", assSubtitleModel.Styles.Format)}");
-            foreach (var style in assSubtitleModel.Styles.styles)
-            {
-                await stream.WriteAsync("Style: ");
-                for (int i = 0; i < assSubtitleModel.Styles.Format.Length; i++)
-                {
-                    switch (assSubtitleModel.Styles.Format[i])
-                    {
-                        case "Name":
-                            await stream.WriteAsync(style.Name);
-                            break;
-                        case "Fontname":
-                            await stream.WriteAsync(style.Fontname);
-                            break;
-                        case "Fontsize":
-                            await stream.WriteAsync(style.Fontsize);
-                            break;
-                        case "PrimaryColour":
-                            await stream.WriteAsync(style.PrimaryColour);
-                            break;
-                        case "SecondaryColour":
-                            await stream.WriteAsync(style.SecondaryColour);
-                            break;
-                        case "OutlineColour":
-                            await stream.WriteAsync(style.OutlineColour);
-                            break;
-                        case "BackColour":
-                            await stream.WriteAsync(style.BackColour);
-                            break;
-                        case "Bold":
-                            await stream.WriteAsync(style.Bold);
-                            break;
-                        case "Italic":
-                            await stream.WriteAsync(style.Italic);
-                            break;
-                        case "Underline":
-                            await stream.WriteAsync(style.Underline);
-                            break;
-                        case "StrikeOut":
-                            await stream.WriteAsync(style.StrikeOut);
-                            break;
-                        case "ScaleX":
-                            await stream.WriteAsync(style.ScaleX);
-                            break;
-                        case "ScaleY":
-                            await stream.WriteAsync(style.ScaleY);
-                            break;
-                        case "Spacing":
-                            await stream.WriteAsync(style.Spacing);
-                            break;
-                        case "Angle":
-                            await stream.WriteAsync(style.Angle);
-                            break;
-                        case "BorderStyle":
-                            await stream.WriteAsync(style.BorderStyle);
-                            break;
-                        case "Outline":
-                            await stream.WriteAsync(style.Outline);
-                            break;
-                        case "Shadow":
-                            await stream.WriteAsync(style.Shadow);
-                            break;
-                        case "Alignment":
-                            await stream.WriteAsync(style.Alignment);
-                            break;
-                        case "MarginL":
-                            await stream.WriteAsync(style.MarginL);
-                            break;
-                        case "MarginR":
-                            await stream.WriteAsync(style.MarginR);
-                            break;
-                        case "MarginV":
-                            await stream.WriteAsync(style.MarginV);
-                            break;
-                        case "Encoding":
-                            await stream.WriteAsync(style.Encoding);
-                            break;
-                        default:
-                            throw new Exception($"Invalid style {assSubtitleModel.Styles.Format[i]} in [V4+ Styles]");
-                    }
-                    if (i != assSubtitleModel.Styles.Format.Length - 1)
-                    {
-                        await stream.WriteAsync(',');
-                    }
-                }
-                await stream.WriteAsync(Environment.NewLine);
-            }
-            await stream.WriteLineAsync();
-            if (assSubtitleModel.UnknownSections.ContainsKey("[Fonts]"))
-            {
-                await stream.WriteLineAsync("[Fonts]");
-                await stream.WriteLineAsync(assSubtitleModel.UnknownSections["[Fonts]"]);
-            }
-            if (assSubtitleModel.UnknownSections.ContainsKey("[Graphics]"))
-            {
-                await stream.WriteLineAsync("[Graphics]");
-                await stream.WriteLineAsync(assSubtitleModel.UnknownSections["[Graphics]"]);
-            }
-            await stream.WriteLineAsync("[Events]");
-            await stream.WriteAsync($"Format: {string.Join(", ", assSubtitleModel.Events.Format)}");
-            foreach (var item in assSubtitleModel.Events.events)
-            {
-                await stream.WriteAsync(Environment.NewLine);
-                await stream.WriteAsync($"{(item.Type == EventType.Dialogue ? "Dialogue" : "Comment")}: ");
-                for (int i = 0; i < assSubtitleModel.Events.Format.Length; i++)
-                {
-                    switch (assSubtitleModel.Events.Format[i])
-                    {
-                        case "Layer":
-                            await stream.WriteAsync(item.Layer);
-                            break;
-                        case "Start":
-                            await stream.WriteAsync(item.Start);
-                            break;
-                        case "End":
-                            await stream.WriteAsync(item.End);
-                            break;
-                        case "Style":
-                            await stream.WriteAsync(item.Style);
-                            break;
-                        case "Name":
-                            await stream.WriteAsync(item.Name);
-                            break;
-                        case "MarginL":
-                            await stream.WriteAsync(item.MarginL);
-                            break;
-                        case "MarginR":
-                            await stream.WriteAsync(item.MarginR);
-                            break;
-                        case "MarginV":
-                            await stream.WriteAsync(item.MarginV);
-                            break;
-                        case "Effect":
-                            await stream.WriteAsync(item.Effect);
-                            break;
-                        case "Text":
-                            await stream.WriteAsync(item.Text);
-                            break;
-                        default:
-                            throw new($"Invalid style {assSubtitleModel.Events.Format[i]}");
-                    }
-                    if (i != assSubtitleModel.Events.Format.Length - 1)
-                    {
-                        await stream.WriteAsync(',');
-                    }
-                }
-            }
-            if (assSubtitleModel.UnknownSections.ContainsKey("[Aegisub Extradata]"))
-            {
-                await stream.WriteLineAsync();
-                await stream.WriteLineAsync();
-                await stream.WriteLineAsync("[Aegisub Extradata]");
-                await stream.WriteAsync(assSubtitleModel.UnknownSections["[Aegisub Extradata]"]);
-            }
-            await stream.FlushAsync();
+            await streamWriter.WriteLineAsync();
+            await streamWriter.WriteLineAsync();
+            await streamWriter.WriteLineAsync($"[{AssSubtitleModel.AegisubExtradataSection}]");
+            await streamWriter.WriteAsync(aegisubExtradata);
         }
     }
 }

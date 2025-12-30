@@ -1,53 +1,56 @@
-﻿using AssParser.Lib;
+using AssParser.Lib;
 
-namespace AssParser.Test.AssParserTest
+namespace AssParser.Test.AssParserTest;
+
+[TestClass]
+public class AssParserTest
 {
-    public class AssParserTest
+    [TestMethod]
+    [DataRow("1.ass")]
+    [DataRow("2.ass")]
+    public async Task AssParser_ShouldNot_ThrowAsync(string file)
     {
-        [Theory]
-        [InlineData("1.ass")]
-        [InlineData("2.ass")]
-        public void AssParser_ShouldNot_Throw(string file)
+        // Arrange
+        var path = Path.Combine("AssParserTest", file);
+
+        try
         {
-            //Arrange
-            var path = Path.Combine("AssParserTest", file);
-
-            //Act
-            var exception = Record.ExceptionAsync(() => Lib.AssParser.ParseAssFile(path));
-
-            //Assert
-            Assert.Null(exception.Result);
+            _ = await Lib.AssParser.ParseFileAsync(path);
         }
-        [Theory]
-        [InlineData("1.ass")]
-        [InlineData("2.ass")]
-        public void ToString_ShouldBe_Same(string file)
+        catch (Exception ex)
         {
-            //Arrange
-            var path = Path.Combine("AssParserTest", file);
-            var source = File.ReadAllText(path);
-            var assfile = Lib.AssParser.ParseAssFile(path).Result;
-
-            //Act
-            var res = assfile.ToString();
-
-            //Assert
-            Assert.Equal(source.Replace("\r\n", "\n").Replace("\n", "\r\n"), res.Replace("\r\n", "\n").Replace("\n", "\r\n"));
+            Assert.Fail(ex.Message);
         }
-        [Fact]
-        public async void AssParser_ShouldThrow_InvalidStyle()
-        {
-            //Arrange
-            var path = Path.Combine("AssParserTest", "format_14.ass");
-            using var sr = new StreamReader(File.OpenRead(path));
+    }
 
-            //Act
-            var act = () => Lib.AssParser.ParseAssFile(sr);
+    [TestMethod]
+    [DataRow("1.ass")]
+    [DataRow("2.ass")]
+    public async Task ToString_ShouldBe_SameAsync(string file)
+    {
+        // Arrange
+        var path = Path.Combine("AssParserTest", file);
+        var source = await File.ReadAllTextAsync(path);
+        var assFile = await Lib.AssParser.ParseFileAsync(path);
 
-            //Assert
-            var exception = await Assert.ThrowsAsync<AssParserException>(act);
-            Assert.Equal(14, exception?.LineCount);
-            Assert.Equal(AssParserErrorType.InvalidStyleLine, exception?.ErrorType);
-        }
+        // Act
+        var res = await assFile.GetStringAsync();
+
+        // Assert
+        Assert.AreEqual(source.ReplaceLineEndings("\r\n"), res.ReplaceLineEndings("\r\n"));
+    }
+
+    [TestMethod]
+    public async Task AssParser_ShouldThrow_InvalidStyleAsync()
+    {
+        // Arrange
+        var path = Path.Combine("AssParserTest", "format_14.ass");
+
+        // Act & Assert
+        var exception = await Assert.ThrowsExceptionAsync<AssParserException>(
+            async () => await Lib.AssParser.ParseFileAsync(path));
+        
+        Assert.AreEqual(14, exception.LineCount);
+        Assert.AreEqual(AssParserException.AssParserErrorType.InvalidStyleLine, exception.ErrorType);
     }
 }

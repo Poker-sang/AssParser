@@ -1,71 +1,30 @@
-﻿namespace AssParser.Lib
+using System;
+
+namespace AssParser.Lib;
+
+public class AssParserException(
+    int lineCount,
+    AssParserException.AssParserErrorType errorType,
+    string? message = null,
+    Exception? inner = null)
+    : Exception($"[{lineCount}] {errorType}: {message}", inner)
 {
-    [Serializable]
-    public class AssParserException : Exception
-    {
-        public StreamReader streamReader;
-        public int LineCount;
-        public AssParserErrorType ErrorType;
-        public AssParserException(StreamReader streamReader, int lineCount, AssParserErrorType errorType)
-        {
-            this.streamReader = streamReader;
-            LineCount = lineCount;
-            ErrorType = errorType;
-        }
-        public AssParserException(string message, StreamReader streamReader, int lineCount, AssParserErrorType errorType) : base(message)
-        {
-            streamReader.DiscardBufferedData();
-            this.streamReader = streamReader;
-            LineCount = lineCount;
-            ErrorType = errorType;
-        }
-        public AssParserException(string message, Exception inner, StreamReader streamReader, int lineCount, AssParserErrorType errorType) : base(message, inner)
-        {
-            this.streamReader = streamReader;
-            LineCount = lineCount;
-            ErrorType = errorType;
-        }
-        protected AssParserException(
-          System.Runtime.Serialization.SerializationInfo info,
-          System.Runtime.Serialization.StreamingContext context, StreamReader streamReader, int lineCount, AssParserErrorType errorType) : base(info, context)
-        {
-            this.streamReader = streamReader;
-            LineCount = lineCount;
-            ErrorType = errorType;
-        }
-        /// <summary>
-        /// Print readable exception in English.
-        /// </summary>
-        /// <returns>Exception message and line content.</returns>
-        public override string ToString()
-        {
-            string? Line = PrintErrorLine();
-            return $"{base.Message}{Environment.NewLine}{Line}";
-        }
-        /// <summary>
-        /// Print the line where exception occurs.
-        /// </summary>
-        /// <returns>Line number and the content of the line.The format is "Line XX : ********".</returns>
-        public string? PrintErrorLine()
-        {
-            streamReader.DiscardBufferedData();
-            streamReader.BaseStream.Position = 0;
-            int i = 1;
-            while (i < LineCount)
-            {
-                i++;
-                _ = streamReader.ReadLine();
-            }
-            return $"Line {LineCount} : {streamReader.ReadLine()}";
-        }
-    }
+    public readonly int LineCount = lineCount;
+    public readonly AssParserErrorType ErrorType = errorType;
+
+    /// <summary>
+    /// Print readable exception in English.
+    /// </summary>
+    /// <returns>Exception message and line content.</returns>
+    public override string ToString() => Message;
+
     public enum AssParserErrorType
     {
         UnknownError,
         InvalidSection,
+        MissingSection,
         MissingFormatLine,
         InvalidStyleLine,
-        InvalidStyle,
-        InvalidEvent,
+        InvalidEventLine
     }
 }

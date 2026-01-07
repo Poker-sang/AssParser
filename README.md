@@ -1,4 +1,4 @@
-# AssParser &middot; [![Publish to nuget](https://github.com/Poker-sang/AssParser/actions/workflows/dotnet-nuget.yml/badge.svg)](https://github.com/Poker-sang/AssParser/actions/workflows/dotnet-nuget.yml) ![Nuget](https://img.shields.io/nuget/v/AssParser?logo=nuget)  [![Test](https://github.com/Poker-sang/AssParser/actions/workflows/test.yml/badge.svg)](https://github.com/Poker-sang/AssParser/actions/workflows/test.yml)
+# AssParser
 
 Parse ASS (Advanced SubStation Alpha Subtitles) file faster. No Regex. All managed code.
 
@@ -23,7 +23,7 @@ class FontDetail {
 	string FontName
 	int Bold
 	bool IsItalic
-	string UsedChar
+	IReadOnlyList&lt;char&gt; UsedChar
 	bool Equals()
 }
 ```
@@ -41,3 +41,12 @@ string fontsData = assfile.UnknownSections["Fonts"];
 ReadOnlySpan<byte> data = UUEncode.Decode(fontsData, out var crlf);
 ReadOnlySpan<byte> encoded = UUEncode.Eecode(data, crlf)
 ```
+
+## References
+
+- <https://github.com/AmusementClub/AssParser>
+- <http://www.tcax.org/docs/ass-specs.htm>
+- <https://github.com/weizhenye/ASS/wiki/ASS-字幕格式规范>
+- <https://1e0nhardt.github.io/blog/ass字幕格式.html>
+- <https://pyvideotrans.com/blog/ass>
+- <https://aegisub.org/docs/latest/script_resolution/>

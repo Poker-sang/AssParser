@@ -14,7 +14,7 @@ public class FontDetail : IEquatable<FontDetail?>
 
     public bool IsItalic { get; init; }
 
-    public string UsedChar { get; set; } = "";
+    public IReadOnlyList<char> UsedChar { get; set; } = [];
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => Equals(obj as FontDetail);

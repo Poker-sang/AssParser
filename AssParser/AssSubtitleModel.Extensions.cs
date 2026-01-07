@@ -162,7 +162,7 @@ public partial class AssSubtitleModel
     }
 
     /// <summary>
-    /// Export all used fonts. All used chars are listed in FontDetail.UsedChar, including \h.
+    /// Export all used fonts. All used chars are listed in <see cref="FontDetail.UsedChar"/>, including \h.
     /// Italic, Bold and @(vertical alignment) is considered as different font.
     /// </summary>
     /// <returns>List of distinct used fonts.</returns>
@@ -188,7 +188,7 @@ public partial class AssSubtitleModel
                     text = spLeft[0];
                     spLeft.RemoveAt(0);
                 }
-                var word = text.Replace("\\N", "").Replace("\\n", "").Replace("\\h", "\u00A0");
+                var word = text.Replace("\\N", "").Replace("\\n", "").Replace("\\h", "\u00A0").ToCharArray();
                 if (word.Length > 0)
                 {
                     var detail = new FontDetail
@@ -241,7 +241,7 @@ public partial class AssSubtitleModel
                     }
                     if (spRight.Length > 1)
                     {
-                        var word = spRight[1].Replace("\\N", "").Replace("\\n", "").Replace("\\h", "\u00A0");
+                        var word = spRight[1].Replace("\\N", "").Replace("\\n", "").Replace("\\h", "\u00A0").ToCharArray();
                         if (word.Length > 0)
                         {
                             var detail = new FontDetail
@@ -263,8 +263,8 @@ public partial class AssSubtitleModel
         var i = 0;
         foreach (var s in result)
         {
-            var chars = s.Value.Keys.OrderBy(c => c).ToArray();
-            s.Key.UsedChar = new string(chars);
+            var chars = s.Value.Keys.Order().ToArray();
+            s.Key.UsedChar = chars;
             fonts[i] = s.Key;
             i++;
         }

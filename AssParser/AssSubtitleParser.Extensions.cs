@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace AssParser;
@@ -27,8 +26,7 @@ public partial class AssSubtitleModel
                 AssConstants.ScriptInfoSection => WriteScriptInfoAsync(streamWriter),
                 AssConstants.V4StylesSection or AssConstants.V4PStylesSection => WriteStylesAsync(streamWriter, ord),
                 AssConstants.EventsSection => WriteEventsAsync(streamWriter),
-                AssConstants.FontsSection or AssConstants.GraphicsSection or AssConstants.AegisubExtradataSection or AssConstants.AegisubProjectGarbageSection =>
-                    WriteUnknownSectionAsync(streamWriter, ord),
+                _ when AssConstants.KnownExtraSections.Contains(ord) => WriteExtraSectionAsync(streamWriter, ord),
                 _ => throw new ArgumentOutOfRangeException($"Invalid section {ord}")
             });
             await streamWriter.WriteLineAsync();
@@ -156,9 +154,9 @@ public partial class AssSubtitleModel
             await streamWriter.WriteLineAsync($"{item.Type}: {item.Content}");
     }
 
-    private async Task WriteUnknownSectionAsync(StreamWriter streamWriter, string sectionName)
+    private async Task WriteExtraSectionAsync(StreamWriter streamWriter, string sectionName)
     {
-        var unknownSection = UnknownSections[sectionName];
+        var unknownSection = ExtraSections[sectionName];
         await streamWriter.WriteLineAsync($"[{sectionName}]");
         await streamWriter.WriteLineAsync(unknownSection);
     }

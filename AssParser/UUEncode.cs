@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Text;
 
 namespace AssParser;
 
@@ -7,17 +8,17 @@ public class UUEncode
 {
     private static ReadOnlySpan<byte> EncLut => "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"u8;
 
-    internal const byte Cr = (byte) '\r';
-    internal const byte Lf = (byte) '\n';
+    private const byte Cr = (byte) '\r';
+    private const byte Lf = (byte) '\n';
 
     /// <summary>
-    /// Use UUEncode to encode byte[] data. Despite being called uuencoding by ass_specs.doc, the format is actually somewhat different from real uuencoding.
+    /// Use UUEncode to encode ReadOnlySpan&lt;byte&gt; data. Despite being called uuencoding by ass_specs.doc, the format is actually somewhat different from real uuencoding.
     /// Please refer to https://github.com/Aegisub/Aegisub/blob/6f546951b4f004da16ce19ba638bf3eedefb9f31/libaegisub/ass/uuencode.cpp for more information.
     /// </summary>
     /// <param name="data"></param>
     /// <param name="insertBr">Whether break the line after 80 characters.</param>
     /// <param name="crlf">The linebreak type of source string. True if is CRLF.</param>
-    /// <returns>UUEncoded string.</returns>
+    /// <returns>UUEncoded byte span.</returns>
     public static ReadOnlySpan<byte> Encode(ReadOnlySpan<byte> data, bool insertBr = true, bool crlf = true)
     {
         var written = 0;
@@ -70,16 +71,16 @@ public class UUEncode
     }
 
     /// <summary>
-    /// Use UUEncode to decode byte[] data. Despite being called uuencoding by ass_specs.doc, the format is actually somewhat different from real uuencoding.
-    /// Please refer to https://github.com/Aegisub/Aegisub/blob/6f546951b4f004da16ce19ba638bf3eedefb9f31/libaegisub/ass/uuencode.cpp for more information.
+    /// Use UUEncode to decode ReadOnlySpan&lt;byte&gt; data. Despite being called uuencoding by ass_specs.doc, the format is actually somewhat different from real uuencoding.
+    /// Please refer to <seealso href="https://github.com/Aegisub/Aegisub/blob/6f546951b4f004da16ce19ba638bf3eedefb9f31/libaegisub/ass/uuencode.cpp"/> for more information.
     /// </summary>
-    /// <param name="byteData">UUEncoded string.</param>
+    /// <param name="data">UUEncoded byte span.</param>
     /// <param name="crLf">The linebreak type of source string. True if is CRLF.</param>
-    /// <returns>UUDecoded byte[].</returns>
-    public static ReadOnlySpan<byte> Decode(ReadOnlySpan<byte> byteData, out bool crLf)
+    /// <returns>UUDecoded byte span.</returns>
+    public static ReadOnlySpan<byte> Decode(ReadOnlySpan<byte> data, out bool crLf)
     {
         crLf = false;
-        var length = byteData.Length;
+        var length = data.Length;
         Span<byte> src = stackalloc byte[4];
         var writer = new ArrayBufferWriter<byte>(length * 3 / 4);
         for (var pos = 0; pos + 1 < length;)
@@ -88,7 +89,7 @@ public class UUEncode
             var bytes = 0;
             for (var i = 0; i < numBytesRemain; ++pos)
             {
-                var c = byteData[pos];
+                var c = data[pos];
                 if (c is not Lf and not Cr)
                 {
                     src[i] = (byte) (c - 33);
@@ -123,4 +124,10 @@ public class UUEncode
 
         return writer.WrittenSpan;
     }
+
+    /// <inheritdoc cref="Encode(ReadOnlySpan{byte}, bool, bool)"/>
+    public static string EncodeToString(ReadOnlySpan<byte> data, bool insertBr = true, bool crlf = true) => Encoding.UTF8.GetString(Encode(data, insertBr, crlf));
+
+    /// <inheritdoc cref="Decode(ReadOnlySpan{byte}, out bool)"/>
+    public static ReadOnlySpan<byte> Decode(string data, out bool crLf) => Decode(Encoding.UTF8.GetBytes(data), out crLf);
 }

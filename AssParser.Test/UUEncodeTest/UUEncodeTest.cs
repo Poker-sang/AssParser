@@ -12,7 +12,7 @@ public class UuEncodeTest
     public async Task InitializeAsync()
     {
         var assFile = await AssSubtitleParser.ParseFileAsync(Path.Combine(nameof(UUEncodeTest), "1.ass"));
-        var fontsData = assFile.UnknownSections[AssConstants.FontsSection];
+        var fontsData = assFile.ExtraSections[AssConstants.FontsSection];
         fontsData = fontsData[(fontsData.IndexOf('\n') + 1)..].Trim();
 
         _fontsDataCrlf = Encoding.UTF8.GetBytes(fontsData.ReplaceLineEndings("\r\n"));

@@ -1,4 +1,11 @@
 <Solution>
+  <Folder Name="/Solution Folder/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
   <Project Path="AssParser.Benchmark/AssParser.Benchmark.csproj" />
   <Project Path="AssParser.Test/AssParser.Test.csproj">
     <BuildDependency Project="AssParser/AssParser.csproj" />

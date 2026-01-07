@@ -24,9 +24,9 @@ public partial class AssSubtitleModel
     public required List<string> Ord { get; set; }
 
     /// <summary>
-    /// [Fonts] / [Graphics] / [Aegisub Extradata] / [Aegisub Project Garbage] and any unknown sections
+    /// [Fonts] / [Graphics] / [Aegisub Extradata] / [Aegisub Project Garbage] and any other sections
     /// </summary>
-    public required Dictionary<string, string> UnknownSections { get; set; }
+    public required Dictionary<string, string> ExtraSections { get; set; }
 
     /// <summary>
     /// Asynchronously retrieves the content as a string.

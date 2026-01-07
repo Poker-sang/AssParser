@@ -1,13 +1,13 @@
-namespace AssParser.Test.AssParserExtTest;
+namespace AssParser.Test.AssParserExtensionTest;
 
 [TestClass]
-public class AssParserExtTest
+public class AssParserExtensionTest
 {
     [DataRow("FontsTest.ass", "FontsTest.txt")]
     [TestMethod]
     public async Task UsedFonts_ShouldBe_EquivalentAsync(string ass, string txt)
     {
-        var truth = await File.ReadAllLinesAsync(Path.Combine(nameof(AssParserExtTest), txt));
+        var truth = await File.ReadAllLinesAsync(Path.Combine(nameof(AssParserExtensionTest), txt));
         var sortedTruth = truth.Select(line => line.Split('\t'))
             .Select(parts => new FontDetail
             {
@@ -18,7 +18,7 @@ public class AssParserExtTest
             })
             .ToArray();
 
-        var assFile = await AssSubtitleParser.ParseFileAsync(Path.Combine(nameof(AssParserExtTest), ass));
+        var assFile = await AssSubtitleParser.ParseFileAsync(Path.Combine(nameof(AssParserExtensionTest), ass));
         var fonts = assFile.UsedFonts();
 
         foreach (var fontDetail in fonts)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -32,7 +33,7 @@ public static class AssSubtitleParser
         ScriptInfo? scriptInfo = null;
         Styles? styles = null;
         Events? events = null;
-        var unknownSections = new Dictionary<string, string>();
+        var extraSections = new Dictionary<string, string>();
         using var assStream = new StreamReader(stream, leaveOpen: true);
         while (await assStream.ReadLineAsync(token) is { } sectionLine)
         {
@@ -243,8 +244,7 @@ public static class AssSubtitleParser
                 }
                 default:
                 {
-                    if (!strictnessLevel.HasFlagFast(StrictnessLevel.AllowUnknownSections) &&
-                        section is not (AssConstants.FontsSection or AssConstants.GraphicsSection or AssConstants.AegisubExtradataSection or AssConstants.AegisubProjectGarbageSection))
+                    if (!strictnessLevel.HasFlagFast(StrictnessLevel.AllowUnknownSections) && !AssConstants.KnownExtraSections.Contains(section))
                         throw new AssSubtitleParserException(lineCount, AssSubtitleParserException.ErrorType.UnknownSection, $"Unknown section: [{section}]");
                     var bodyBuffer = new StringBuilder();
                     while (assStream.Peek() is not '\r' and not '\n' and > -1)
@@ -253,7 +253,7 @@ public static class AssSubtitleParser
                         lineCount++;
                     }
 
-                    unknownSections.Add(section, bodyBuffer.ToString());
+                    extraSections.Add(section, bodyBuffer.ToString());
                     break;
                 }
             }
@@ -272,7 +272,7 @@ public static class AssSubtitleParser
             ScriptInfo = scriptInfo,
             Styles = styles,
             Events = events,
-            UnknownSections = unknownSections
+            ExtraSections = extraSections
         };
 
         return assSubtitleModel;

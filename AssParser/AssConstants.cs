@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace AssParser;
 
 /// <summary>
@@ -5,16 +7,6 @@ namespace AssParser;
 /// </summary>
 public static class AssConstants
 {
-    /// <summary>
-    /// [Aegisub Project Garbage] section
-    /// </summary>
-    public const string AegisubProjectGarbageSection = "Aegisub Project Garbage";
-
-    /// <summary>
-    /// [Aegisub Extradata] section
-    /// </summary>
-    public const string AegisubExtradataSection = "Aegisub Extradata";
-
     /// <summary>
     /// [Fonts] section
     /// </summary>
@@ -24,6 +16,21 @@ public static class AssConstants
     /// [Graphics] section
     /// </summary>
     public const string GraphicsSection = "Graphics";
+
+    /// <summary>
+    /// [Aegisub Extradata] section
+    /// </summary>
+    public const string AegisubExtradataSection = "Aegisub Extradata";
+
+    /// <summary>
+    /// [Aegisub Project Garbage] section
+    /// </summary>
+    public const string AegisubProjectGarbageSection = "Aegisub Project Garbage";
+
+    /// <summary>
+    /// Gets the set of extra section names that are recognized by the parser.
+    /// </summary>
+    public static HashSet<string> KnownExtraSections { get; } = [FontsSection, GraphicsSection, AegisubExtradataSection, AegisubProjectGarbageSection];
 
     /// <summary>
     /// [Script Info] section

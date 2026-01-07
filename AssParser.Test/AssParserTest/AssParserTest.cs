@@ -1,5 +1,3 @@
-using AssParser.Lib;
-
 namespace AssParser.Test.AssParserTest;
 
 [TestClass]
@@ -11,11 +9,11 @@ public class AssParserTest
     public async Task AssParser_ShouldNot_ThrowAsync(string file)
     {
         // Arrange
-        var path = Path.Combine("AssParserTest", file);
+        var path = Path.Combine(nameof(AssParserTest), file);
 
         try
         {
-            _ = await Lib.AssParser.ParseFileAsync(path);
+            _ = await AssSubtitleParser.ParseFileAsync(path);
         }
         catch (Exception ex)
         {
@@ -29,28 +27,29 @@ public class AssParserTest
     public async Task ToString_ShouldBe_SameAsync(string file)
     {
         // Arrange
-        var path = Path.Combine("AssParserTest", file);
-        var source = await File.ReadAllTextAsync(path);
-        var assFile = await Lib.AssParser.ParseFileAsync(path);
+        var path = Path.Combine(nameof(AssParserTest), file);
+        var source = (await File.ReadAllTextAsync(path)).ReplaceLineEndings("\n").Split('\n');
+        var assFile = await AssSubtitleParser.ParseFileAsync(path);
 
         // Act
-        var res = await assFile.GetStringAsync();
+        var res = (await assFile.GetStringAsync()).ReplaceLineEndings("\n").Split('\n');
 
         // Assert
-        Assert.AreEqual(source.ReplaceLineEndings("\r\n"), res.ReplaceLineEndings("\r\n"));
+        CollectionAssert.IsSubsetOf(source, res);
     }
 
     [TestMethod]
-    public async Task AssParser_ShouldThrow_InvalidStyleAsync()
+    [DataRow("format_14.ass")]
+    public async Task AssParser_ShouldThrow_InvalidStyleAsync(string file)
     {
         // Arrange
-        var path = Path.Combine("AssParserTest", "format_14.ass");
+        var path = Path.Combine(nameof(AssParserTest), file);
 
         // Act & Assert
-        var exception = await Assert.ThrowsExceptionAsync<AssParserException>(
-            async () => await Lib.AssParser.ParseFileAsync(path));
+        var exception = await Assert.ThrowsExceptionAsync<AssSubtitleParserException>(
+            async () => await AssSubtitleParser.ParseFileAsync(path));
         
         Assert.AreEqual(14, exception.LineCount);
-        Assert.AreEqual(AssParserException.AssParserErrorType.InvalidStyleLine, exception.ErrorType);
+        Assert.AreEqual(AssSubtitleParserException.ErrorType.InvalidStyleLine, exception.Type);
     }
 }

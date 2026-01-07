@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="AssParser.Benchmark/AssParser.Benchmark.csproj" />
+  <Project Path="AssParser.Test/AssParser.Test.csproj">
+    <BuildDependency Project="AssParser/AssParser.csproj" />
+  </Project>
+  <Project Path="AssParser/AssParser.csproj" />
+</Solution>

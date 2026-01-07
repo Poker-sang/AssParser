@@ -1,7 +1,7 @@
 using System;
 using System.Buffers;
 
-namespace AssParser.Lib;
+namespace AssParser;
 
 public class UUEncode
 {

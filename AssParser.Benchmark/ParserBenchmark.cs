@@ -1,8 +1,7 @@
-using AssParser.Lib;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 
-namespace AssParser;
+namespace AssParser.Benchmark;
 
 [SimpleJob(RuntimeMoniker.Net10_0, baseline: true)]
 [SimpleJob(RuntimeMoniker.NativeAot10_0)]
@@ -17,7 +16,7 @@ public class ParserBenchmark
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        _assStream = new FileStream(TestFileName, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+        _assStream = new(TestFileName, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
         _assFile = await ParseFileAsync();
     }
 
@@ -25,7 +24,7 @@ public class ParserBenchmark
     public async Task<AssSubtitleModel> ParseFileAsync()
     {
         _assStream.Position = 0;
-        return await Lib.AssParser.ParseAsync(_assStream);
+        return await AssSubtitleParser.ParseAsync(_assStream);
     }
 
     [Benchmark]

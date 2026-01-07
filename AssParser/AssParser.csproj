@@ -1,23 +1,32 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net10.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
+		<TargetFrameworks>net10.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
+		<IsAotCompatible>true</IsAotCompatible>
+
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Authors>Poker</Authors>
+		<Title>$(AssemblyName)</Title>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/Poker-sang/AssParser.git</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/Poker-sang/AssParser</PackageProjectUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<Description>Useful template methods for WinUI3 projects</Description>
+		<PackageTags>ASS;SSA</PackageTags>
+		<AssemblyVersion>1.0.0</AssemblyVersion>
+		<FileVersion>$(AssemblyVersion)</FileVersion>
+		<VersionPrefix>$(AssemblyVersion)</VersionPrefix>
+		<Version>$(AssemblyVersion)</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\AssParser.Lib\AssParser.Lib.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Update="[Nekomoe kissaten&amp;VCB-Studio] Cider no You ni Kotoba ga Wakiagaru [Ma10p_1080p][x265_flac].jp&amp;sc.ass">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<None Include="..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
 		</None>
 	</ItemGroup>
 

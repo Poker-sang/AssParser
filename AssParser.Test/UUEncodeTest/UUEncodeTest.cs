@@ -1,5 +1,4 @@
 using System.Text;
-using AssParser.Lib;
 
 namespace AssParser.Test.UUEncodeTest;
     
@@ -12,8 +11,8 @@ public class UuEncodeTest
     [TestInitialize]
     public async Task InitializeAsync()
     {
-        var assFile = await Lib.AssParser.ParseFileAsync(Path.Combine("UUEncodeTest", "1.ass"));
-        var fontsData = assFile.UnknownSections[AssSubtitleModel.FontsSection];
+        var assFile = await AssSubtitleParser.ParseFileAsync(Path.Combine(nameof(UUEncodeTest), "1.ass"));
+        var fontsData = assFile.UnknownSections[AssConstants.FontsSection];
         fontsData = fontsData[(fontsData.IndexOf('\n') + 1)..].Trim();
 
         _fontsDataCrlf = Encoding.UTF8.GetBytes(fontsData.ReplaceLineEndings("\r\n"));
@@ -21,9 +20,10 @@ public class UuEncodeTest
     }
 
     [TestMethod]
-    public void UUDecode_ShouldBe_Same()
+    [DataRow("FreeSans.ttf")]
+    public void UUDecode_ShouldBe_Same(string ttfFile)
     {
-        var ttf = File.ReadAllBytes(Path.Combine("UUEncodeTest", "FreeSans.ttf"));
+        var ttf = File.ReadAllBytes(Path.Combine(nameof(UUEncodeTest), ttfFile));
         var data1 = UUEncode.Decode(_fontsDataCrlf, out _);
         CollectionAssert.AreEqual(ttf, data1.ToArray());
     }

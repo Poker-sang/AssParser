@@ -17,10 +17,8 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-	</ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\AssParser.Lib\AssParser.Lib.csproj" />
+		<ProjectReference Include="..\AssParser\AssParser.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

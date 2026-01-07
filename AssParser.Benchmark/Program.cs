@@ -1,6 +1,4 @@
-using AssParser.Lib;
-
-namespace AssParser;
+namespace AssParser.Benchmark;
 
 public static class Program
 {
@@ -8,7 +6,7 @@ public static class Program
     {
         try
         {
-            var assFile = await Lib.AssParser.ParseFileAsync(ParserBenchmark.TestFileName);
+            var assFile = await AssSubtitleParser.ParseFileAsync(ParserBenchmark.TestFileName);
             var fonts = assFile.UsedFonts();
             foreach (var font in fonts)
             {
@@ -21,7 +19,7 @@ public static class Program
             foreach (var ex in ae.InnerExceptions)
             {
                 // Handle the custom exception.
-                if (ex is AssParserException assException)
+                if (ex is AssSubtitleParserException assException)
                 {
                     Console.WriteLine(assException?.ToString());
                 }

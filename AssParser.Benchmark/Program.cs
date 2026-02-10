@@ -10,7 +10,7 @@ public static class Program
             var fonts = assFile.UsedFonts();
             foreach (var font in fonts)
             {
-                Console.WriteLine(font.FontName + "\t" + font.UsedChar);
+                Console.WriteLine(font.FontName + "\t" + new string(font.UsedChar.ToArray()));
             }
             var txt = await assFile.GetStringAsync();
         }

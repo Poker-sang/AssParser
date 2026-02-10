@@ -5,7 +5,7 @@ namespace AssParser;
 /// <summary>
 /// [V4 Styles] / [V4+ Styles] section
 /// </summary>
-public class Styles : List<Style>
+public class Styles : Dictionary<string, Style>
 {
     /// <summary>
     /// The format line specifies how SSA will interpret all following Style lines.

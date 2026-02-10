@@ -76,7 +76,7 @@ public partial class AssSubtitleModel
     {
         await streamWriter.WriteLineAsync($"[{stylesSectionName}]");
         await streamWriter.WriteLineAsync($"{AssConstants.FormatLine}: {string.Join(", ", Styles.Format)}");
-        foreach (var style in Styles)
+        foreach (var style in Styles.Values)
         {
             await streamWriter.WriteAsync($"{AssConstants.StyleLine}: ");
             var first = true;
@@ -170,13 +170,10 @@ public partial class AssSubtitleModel
     public IReadOnlyList<FontDetail> UsedFonts()
     {
         ConcurrentDictionary<FontDetail, ConcurrentDictionary<char, byte>> result = new();
-        Dictionary<string, Style> styles = [];
-        foreach (var style in Styles)
-            _ = styles.TryAdd(style.Name, style);
         _ = Parallel.ForEach(Events, item =>
         {
             var spLeft = item.Text.Split('{').ToList();
-            var currentStyle = styles[item.Style];
+            var currentStyle = Styles[item.Style];
             var currentBold = currentStyle.Bold ? 1 : 0;
             if (!item.Text.StartsWith('{'))
             {
@@ -231,8 +228,8 @@ public partial class AssSubtitleModel
                                 break;
                             case 'r':
                                 currentStyle = remains.Length is 0 
-                                    ? styles[item.Style]
-                                    : styles[remains];
+                                    ? Styles[item.Style]
+                                    : Styles[remains];
                                 currentBold = currentStyle.Bold ? 1 : 0;
                                 break;
                             default:

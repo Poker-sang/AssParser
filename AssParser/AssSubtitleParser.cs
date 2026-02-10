@@ -160,7 +160,13 @@ public static class AssSubtitleParser
                                     break;
                             }
 
-                        styles.Add(style);
+                        if (style.Name is null)
+                            if (!strictnessLevel.HasFlagFast(StrictnessLevel.AllowInvalidLines))
+                                throw new AssSubtitleParserException(lineCount, AssSubtitleParserException.ErrorType.InvalidStyleLine, "Style name is null");
+                            else
+                                continue;
+
+                        styles[style.Name] = style;
                     }
 
                     break;
